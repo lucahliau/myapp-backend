@@ -78,7 +78,7 @@ router.get('/', async (req, res) => {
 
 //get posts endpoint for desktop
 // Assuming each post document includes a field like uploader: userId
-const authMiddleware = require('../middleware/auth');
+
 
 // Endpoint to fetch posts created by the authenticated upload user
 router.get('/myPosts', authMiddleware, async (req, res) => {
