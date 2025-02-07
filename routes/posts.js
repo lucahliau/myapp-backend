@@ -31,7 +31,7 @@ const upload = multer({ storage: storage });
   }
 });*/
 //below is updated create post endpoint
-rrouter.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
+router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     // Ensure the file is provided
     if (!req.file) {
