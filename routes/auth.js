@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
 // Signup endpoint
+// routes/auth.js
 router.post('/signup', async (req, res) => {
   const { email, password, userType } = req.body;
   try {
@@ -18,9 +19,12 @@ router.post('/signup', async (req, res) => {
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
+    // Log the detailed error to the Heroku logs
+    console.error("Error in signup route:", error);
+    res.status(500).json({ message: 'Server error', error: error.toString() });
   }
 });
+
 
 // Login endpoint
 router.post('/login', async (req, res) => {
