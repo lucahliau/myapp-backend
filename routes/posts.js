@@ -8,6 +8,36 @@ const Post = require('../models/Post');
 // Import the authentication middleware BEFORE using it in any routes.
 const authMiddleware = require('../middleware/auth');
 
+const AWS = require('aws-sdk');
+const multerS3 = require('multer-s3');
+
+// Configure AWS with your credentials and region from environment variables
+AWS.config.update({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION,
+});
+
+// Create an S3 instance
+const s3 = new AWS.S3();
+
+// Configure multer to use S3 for storage
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.AWS_BUCKET_NAME,
+    acl: 'public-read', // Set ACL to public-read if you want public URLs
+    metadata: function (req, file, cb) {
+      cb(null, { fieldName: file.fieldname });
+    },
+    key: function (req, file, cb) {
+      // Create a unique file name. You can use Date.now() and file extension.
+      cb(null, Date.now().toString() + path.extname(file.originalname));
+    }
+  })
+});
+
+/*
 // Configure storage for image uploads (stores files in the 'uploads' folder)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -18,7 +48,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ storage: storage }); */
 
 // Create Post endpoint (for desktop upload)
 /*router.post('/create', upload.single('image'), async (req, res) => {
