@@ -31,13 +31,36 @@ const upload = multer({ storage: storage });
   }
 });*/
 //below is updated create post endpoint
-router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
-  const { text } = req.body;
-  const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-  // IMPORTANT: Save the uploader so you can later filter "my posts"
-  const newPost = new Post({ imageUrl, text, uploader: req.user.id });
-  await newPost.save();
-  res.status(201).json({ message: 'Post created successfully', post: newPost });
+rrouter.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    // Ensure the file is provided
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+    const { text } = req.body;
+    // Construct the image URL (assuming you are serving static files from '/uploads')
+    const imageUrl = `/uploads/${req.file.filename}`;
+
+    // Check that req.user exists (set by your auth middleware)
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    // Create a new post document including the uploader field
+    const newPost = new Post({
+      imageUrl,
+      text,
+      uploader: req.user.id  // This assumes your User model uses _id and your auth middleware sets req.user.id
+    });
+
+    await newPost.save();
+
+    res.status(201).json({ message: "Post created successfully", post: newPost });
+  } catch (error) {
+    // Log the detailed error for debugging
+    console.error("Error in creating post:", error);
+    res.status(500).json({ message: "Error creating post", error: error.toString() });
+  }
 });
 
 // Get Posts endpoint (for mobile feed)
