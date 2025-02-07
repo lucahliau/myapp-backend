@@ -41,4 +41,21 @@ router.get('/', async (req, res) => {
   }
 });
 
+//get posts endpoint for desktop
+// Assuming each post document includes a field like uploader: userId
+const authMiddleware = require('../middleware/auth');
+
+// Endpoint to fetch posts created by the authenticated upload user
+router.get('/myPosts', authMiddleware, async (req, res) => {
+  try {
+    // Assuming req.user.id contains the user's ID from the token
+    const myPosts = await Post.find({ uploader: req.user.id }).sort({ createdAt: -1 });
+    res.status(200).json(myPosts);
+  } catch (error) {
+    console.error("Error fetching myPosts:", error);
+    res.status(500).json({ message: "Server error", error: error.toString() });
+  }
+});
+
+
 module.exports = router;

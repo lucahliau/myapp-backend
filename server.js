@@ -35,6 +35,7 @@ app.use('/uploads', express.static('uploads'));
 
 
 
+
 // A simple test route
 app.get('/', (req, res) => {
   res.send('Backend server is running');
