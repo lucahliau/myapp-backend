@@ -1,3 +1,16 @@
+const fs = require('fs');
+const path = require('path');
+
+// Define the uploads folder path relative to your project root
+const uploadsDir = path.join(__dirname, 'uploads');
+
+// Check if the folder exists; if not, create it
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+}
+
+
+
 // server.js
 const express = require('express');
 const cors = require('cors');

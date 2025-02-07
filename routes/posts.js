@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Create Post endpoint (for desktop upload)
-router.post('/create', upload.single('image'), async (req, res) => {
+/*router.post('/create', upload.single('image'), async (req, res) => {
   const { text } = req.body;
   // Note: In production, you’d likely upload the file to cloud storage (e.g., AWS S3)
   const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
@@ -29,6 +29,15 @@ router.post('/create', upload.single('image'), async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
+});*/
+//below is updated create post endpoint
+router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
+  const { text } = req.body;
+  const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+  // IMPORTANT: Save the uploader so you can later filter "my posts"
+  const newPost = new Post({ imageUrl, text, uploader: req.user.id });
+  await newPost.save();
+  res.status(201).json({ message: 'Post created successfully', post: newPost });
 });
 
 // Get Posts endpoint (for mobile feed)
