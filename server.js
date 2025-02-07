@@ -30,6 +30,10 @@ app.use('/api/posts', postRoutes);
 const interactionRoutes = require('./routes/interactions');
 app.use('/api/interactions', interactionRoutes);
 
+//photos convert
+app.use('/uploads', express.static('uploads'));
+
+
 
 // A simple test route
 app.get('/', (req, res) => {
