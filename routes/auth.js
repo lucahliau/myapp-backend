@@ -47,4 +47,25 @@ router.post('/login', async (req, res) => {
   }
 });
 
+//added after
+// routes/auth.js
+const authMiddleware = require('../middleware/auth'); // ensure you have authentication middleware
+
+router.get('/profile', authMiddleware, async (req, res) => {
+  try {
+    // Find the user by the ID from the token and populate the liked and disliked posts
+    const user = await User.findById(req.user.id).populate('likedPosts dislikedPosts');
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.json({
+      likedPosts: user.likedPosts,
+      dislikedPosts: user.dislikedPosts
+    });
+  } catch (error) {
+    console.error("Error in profile route:", error);
+    res.status(500).json({ message: 'Server error', error: error.toString() });
+  }
+});
+
 module.exports = router;
