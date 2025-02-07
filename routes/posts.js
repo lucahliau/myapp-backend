@@ -5,6 +5,9 @@ const multer = require('multer');
 const path = require('path');
 const Post = require('../models/Post');
 
+// Import the authentication middleware BEFORE using it in any routes.
+const authMiddleware = require('../middleware/auth');
+
 // Configure storage for image uploads (stores files in the 'uploads' folder)
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
