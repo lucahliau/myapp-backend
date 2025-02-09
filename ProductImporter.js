@@ -17,7 +17,7 @@ async function importNikeProducts() {
   try {
     const options = {
       method: 'GET',
-      url: 'rapidapi.com', // Replace with the correct endpoint from the API documentation
+      url: 'https://depop-thrift.p.rapidapi.com/search?country=us&sort=newlyListed', // Replace with the correct endpoint from the API documentation
       params: {
         // Include any required query parameters here, for example:
         // limit: "20"
