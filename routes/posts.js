@@ -64,6 +64,7 @@ const upload = multer({ storage: storage }); */
   }
 });*/
 //below is updated create post endpoint
+/*
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     // Ensure the file is provided
@@ -91,6 +92,34 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
     res.status(201).json({ message: "Post created successfully", post: newPost });
   } catch (error) {
     // Log the detailed error for debugging
+    console.error("Error in creating post:", error);
+    res.status(500).json({ message: "Error creating post", error: error.toString() });
+  }
+});
+*/
+router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+    const { text } = req.body;
+    // Use the full URL provided by multer-s3.
+    const imageUrl = req.file.location;  // This should be a full URL like https://myapp-image-uploads-1.s3.us-east-2.amazonaws.com/1738951520013.png
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    const newPost = new Post({
+      imageUrl,
+      text,
+      uploader: req.user.id
+    });
+
+    await newPost.save();
+
+    res.status(201).json({ message: "Post created successfully", post: newPost });
+  } catch (error) {
     console.error("Error in creating post:", error);
     res.status(500).json({ message: "Error creating post", error: error.toString() });
   }
