@@ -98,6 +98,7 @@ router.get('/myPosts', authMiddleware, async (req, res) => {
 module.exports = router;
 */
 // routes/posts.js
+// routes/posts.js
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -125,13 +126,13 @@ const upload = multer({
   storage: multerS3({
     s3: s3,
     bucket: process.env.AWS_BUCKET_NAME,
-    // Uncomment the next line if you want the files to be publicly accessible:
+    // Uncomment the following line if you want public access to the uploaded images:
     // acl: 'public-read',
     metadata: function (req, file, cb) {
       cb(null, { fieldName: file.fieldname });
     },
     key: function (req, file, cb) {
-      // Create a unique file name using the current timestamp and the original file extension.
+      // Create a unique file name using the current timestamp and the file extension.
       cb(null, Date.now().toString() + path.extname(file.originalname));
     }
   })
@@ -148,23 +149,23 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
     const { title, description } = req.body;
     
     // Use the full URL provided by multer-s3.
-    const imageUrl = req.file.location;  // e.g., https://your-bucket.s3.region.amazonaws.com/filename.png
-
-    // Ensure the user is authenticated
+    const imageUrl = req.file.location;  // e.g., "https://your-bucket.s3.region.amazonaws.com/filename.png"
+    
+    // Ensure the user is authenticated.
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-
-    // Create a new post document with the provided image, title, and description.
+    
+    // Create a new post document with the provided fields.
     const newPost = new Post({
       imageUrl,
       title: title || "No title provided",
       description: description || "",
       uploader: req.user.id
     });
-
+    
     await newPost.save();
-
+    
     res.status(201).json({ message: "Post created successfully", post: newPost });
   } catch (error) {
     console.error("Error in creating post:", error);
@@ -172,7 +173,7 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
   }
 });
 
-// GET /: Get all posts (for the mobile feed)
+// GET /: Get all posts (for mobile feed)
 router.get('/', async (req, res) => {
   try {
     const posts = await Post.find().sort({ createdAt: -1 });
