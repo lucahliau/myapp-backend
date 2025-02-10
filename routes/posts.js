@@ -36,7 +36,7 @@ const upload = multer({
     }
   })
 });
-/*
+
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -53,6 +53,7 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
     const newPost = new Post({
       imageUrl,
       text,
+      description,
       uploader: req.user.id
     });
 
@@ -64,30 +65,8 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
     res.status(500).json({ message: "Error creating post", error: error.toString() });
   }
 });
-*/
-// Example: routes/posts.js
-router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: "No image file provided" });
-    }
-    // Expecting the client to send both title and description.
-    const { title, description } = req.body;
-    // Create a new post document.
-    const newPost = new Post({
-      imageUrl: req.file.location || `/uploads/${req.file.filename}`,
-      title: title || "No title provided",
-      description: description || "",
-      uploader: req.user.id
-    });
 
-    await newPost.save();
-    res.status(201).json({ message: "Post created successfully", post: newPost });
-  } catch (error) {
-    console.error("Error in creating post:", error);
-    res.status(500).json({ message: "Error creating post", error: error.toString() });
-  }
-});
+
 
 // Get Posts endpoint (for mobile feed)
 router.get('/', async (req, res) => {
