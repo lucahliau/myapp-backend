@@ -100,11 +100,14 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
 });
 */
 // POST /create route
-const Bull = require('bull');
+const Queue = require('bull');
+const visionQueue = new Queue('myQueueName', process.env.REDIS_URL);
+
+/*const Bull = require('bull');
 const visionQueue = new Bull('visionQueue', process.env.REDIS_URL || {
   host: '127.0.0.1',
   port: 6379
-});
+});*/
 
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
