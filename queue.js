@@ -1,14 +1,21 @@
-// queue.js
-const Queue = require('bull');
+// flowQueue.js
+const { FlowProducer } = require('bullmq');
 
-// Use the REDIS_URL from environment variables; if not set, fallback to localhost.
-const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
+function getRedisConnection() {
+  if (!process.env.REDIS_URL) {
+    throw new Error("REDIS_URL is not set in the environment variables.");
+  }
+  const redisUrl = new URL(process.env.REDIS_URL);
+  return {
+    host: redisUrl.hostname,
+    port: Number(redisUrl.port),
+    // Sometimes the password in the URL starts with a colon—strip it if so.
+    password: redisUrl.password ? redisUrl.password.replace(/^:/, '') : undefined
+  };
+}
 
-const visionQueue = new Queue('visionQueue', redisUrl);
-
-// Optional: add some logging for errors.
-visionQueue.on('error', (error) => {
-  console.error('Vision Queue error:', error);
+const flowProducer = new FlowProducer({
+  connection: getRedisConnection()
 });
 
-module.exports = visionQueue;
+module.exports = flowProducer;
