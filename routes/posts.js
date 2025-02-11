@@ -13,7 +13,6 @@ const multerS3 = require('multer-s3');
 const visionProcessor = require('../visionProcessor');
 
 //import queue
-const visionQueue = require('../queue');
 
 // Define the price categorization helper inline.
 // The function returns a string based on the provided price value.
@@ -100,8 +99,6 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
 });
 */
 
-// Import our FlowProducer instance.
-const flowProducer = require('../flowQueue');
 
 // Import the Agenda instance so that we can enqueue a job.
 const agenda = require('../agenda');
