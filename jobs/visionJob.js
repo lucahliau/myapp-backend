@@ -199,14 +199,31 @@ const defaultAttributes = {
       // Call your vision processor to get computed attribute scores.
       const computedAttributes = await visionProcessor.analyzeImageAndCategorize(imageUrl, description, title);
       console.log("Computed attributes:", computedAttributes);
+      const mergedAttributes = { ...defaultAttributes };
 
-      // Merge the computed scores with the default attributes.
-      const updatedAttributes = { ...defaultAttributes, ...computedAttributes };
-      console.log("updated attributes:", updatedAttributes);
+      // Iterate over each category in the computed attributes.
+      // For each category, if there is a detailedScores object, copy its key-value pairs.
+      for (const category in computedAttributes) {
+        if (
+          computedAttributes[category] &&
+          computedAttributes[category].detailedScores &&
+          typeof computedAttributes[category].detailedScores === 'object'
+        ) {
+          const scores = computedAttributes[category].detailedScores;
+          for (const key in scores) {
+            // Only update keys that exist in our defaultAttributes.
+            if (mergedAttributes.hasOwnProperty(key)) {
+              mergedAttributes[key] = scores[key];
+            }
+          }
+        }
+      }
+      
+      console.log("merged attributes:", mergedAttributes);
       // Update the post so that the 'attributes' field is set to the merged object.
       const updatedPost = await Post.findOneAndUpdate(
         { _id: postId },
-        { $set: { attributes: updatedAttributes } },
+        { $set: { attributes: mergedAttributes } },
         { new: true }
       );
       console.log(`Post ${postId} updated with computed attributes.`);
