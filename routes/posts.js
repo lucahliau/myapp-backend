@@ -271,6 +271,47 @@ const upload = multer({
 // POST /create: Create a new post.
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No image file provided" });
+    }
+    
+    const { title, description, linkUrl, price } = req.body;
+    const imageUrl = req.file.location; // S3 image URL
+
+    // Log the input values to see what you received
+    console.log("Received post data:", { title, description, linkUrl, price, imageUrl });
+    
+    // Call the vision processor and log the computed attributes
+
+    const computedAttributes = await visionProcessor.analyzeImageAndCategorize(imageUrl, description, title);
+    console.log("Computed attributes from vision processor:", computedAttributes);
+
+    const priceValue = Number(price);
+    const priceRange = categorizePrice(priceValue);
+    console.log("Price value:", priceValue, "Price Range:", priceRange);
+
+    const newPost = new Post({
+      imageUrl,
+      title: title || "No title provided",
+      description: description || "",
+      linkUrl: linkUrl || "",
+      uploader: req.user.id,
+      price: priceValue,
+      priceRange: priceRange,
+      ...computedAttributes
+    });
+
+    await newPost.save();
+    console.log("New post saved:", newPost);
+    res.status(201).json({ message: "Post created successfully", post: newPost });
+  } catch (error) {
+    console.error("Error creating post:", error);
+    res.status(500).json({ message: "Error creating post", error: error.toString() });
+  }
+});
+
+/*router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
+  try {
     // Ensure an image file was provided.
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
@@ -316,7 +357,7 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
     console.error("Error creating post:", error);
     res.status(500).json({ message: "Error creating post", error: error.toString() });
   }
-});
+});*/
 
 // GET /: Get all posts (for the mobile feed).
 router.get('/', async (req, res) => {
