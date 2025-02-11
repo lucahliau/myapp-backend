@@ -1,26 +1,11 @@
-/*// worker.js
-const agenda = require('./agenda');
-
-// Import your job definitions so that Agenda knows about them.
-require('./jobs/visionJob');
-
-(async function() {
-  // Wait until Agenda connects to the database.
-  await agenda.start();
-  console.log('Agenda worker started and waiting for jobs...');
-  // Optionally, you can schedule a test job here if needed:
-  // await agenda.now('process vision job', { postId: '123', imageUrl: 'http://example.com/img.jpg', description: 'example', title: 'example' });
-})();
-*/
-
 // worker.js
 const mongoose = require('mongoose');
-const agenda = require('./agenda'); // Your agenda configuration file
+const agenda = require('./agenda');
 
-// Connect to MongoDB before starting Agenda
+// Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
 });
 
 mongoose.connection.on('error', (err) => {
@@ -29,6 +14,16 @@ mongoose.connection.on('error', (err) => {
 
 mongoose.connection.once('open', () => {
   console.log('MongoDB connected in worker process.');
-  // Now that the DB connection is ready, start Agenda.
-  agenda.start();
+  
+  // Import your job definitions so Agenda knows what jobs to process.
+  require('./jobs/visionJob');
+
+  // Start Agenda – this will begin processing any enqueued jobs.
+  agenda.start()
+    .then(() => {
+      console.log('Agenda started and ready to process jobs.');
+    })
+    .catch((err) => {
+      console.error('Error starting Agenda:', err);
+    });
 });

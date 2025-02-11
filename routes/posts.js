@@ -107,19 +107,23 @@ const agenda = require('../agenda');
 // POST /create: Create a new post.
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
+    // Check for an image file
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
     }
 
+    // Extract the required fields from the request body.
     const { title, description, linkUrl, price } = req.body;
     const imageUrl = req.file.location; // S3 URL
+
+    // Ensure the uploader is authenticated.
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
     console.log("Received post data:", { title, description, linkUrl, price, imageUrl });
 
-    // Create and save the post (attributes field will be updated later by the worker).
+    // Create and save the post (the attributes field will be updated later by the vision worker).
     const newPost = new Post({
       imageUrl,
       title: title || "No title provided",
@@ -128,18 +132,21 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
       uploader: req.user.id,
       price: Number(price),
       priceRange: categorizePrice(Number(price)),
-      attributes: {} // Initially empty; will be filled by the vision worker.
+      attributes: {} // initially empty; to be updated by the vision job
     });
-    
+
     await newPost.save();
+    console.log(`New post created with id: ${newPost._id}`);
 
     // Enqueue a vision processing job for this post.
+    // The job data includes the post id, image URL, description, and title.
     await agenda.now('process vision job', {
       postId: newPost._id,
       imageUrl: newPost.imageUrl,
       description: newPost.description,
       title: newPost.title
     });
+    console.log(`Enqueued vision job for post ${newPost._id}`);
 
     res.status(201).json({ message: "Post created successfully", post: newPost });
   } catch (error) {
