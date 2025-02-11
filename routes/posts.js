@@ -99,28 +99,31 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
   }
 });
 */
+
+// Import our FlowProducer instance.
+const flowProducer = require('../flowQueue');
+
 // POST /create route
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
     }
-    
-    // Extract the fields from the request body.
+
     const { title, description, linkUrl, price } = req.body;
-    const imageUrl = req.file.location;  // S3 URL
+    const imageUrl = req.file.location; // URL from S3
 
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-    
+
     console.log("Received post data:", { title, description, linkUrl, price, imageUrl });
-    
-    // Process price.
+
+    // Process the price.
     const priceValue = Number(price);
     const priceRange = categorizePrice(priceValue);
-    
-    // Create a new Post document with basic fields and an empty attributes object.
+
+    // Create a new Post document (with an empty attributes object initially).
     const newPost = new Post({
       imageUrl,
       title: title || "No title provided",
@@ -129,21 +132,27 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
       uploader: req.user.id,
       price: priceValue,
       priceRange: priceRange,
-      attributes: {}  // will be filled in by vision processing
+      attributes: {} // will be updated by the vision worker
     });
-    
+
     await newPost.save();
-    
-    // Add a job to the visionQueue so that the worker will process the image.
-    await visionQueue.add({
-      postId: newPost._id,
-      imageUrl,
-      description,
-      title
+
+    // Enqueue a vision job using the FlowProducer.
+    await flowProducer.add({
+      name: 'visionJob',
+      queueName: 'visionQueue',
+      data: {
+        postId: newPost._id,
+        imageUrl,
+        description,
+        title
+      }
     });
-    
-    // Respond immediately to the client.
-    res.status(201).json({ message: "Post created successfully; vision processing queued", post: newPost });
+
+    res.status(201).json({
+      message: "Post created successfully; vision processing queued",
+      post: newPost,
+    });
   } catch (error) {
     console.error("Error creating post:", error);
     res.status(500).json({ message: "Error creating post", error: error.toString() });
