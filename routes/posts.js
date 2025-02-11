@@ -100,37 +100,27 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
 });
 */
 // POST /create route
-const Queue = require('bull');
-const visionQueue = new Queue('myQueueName', process.env.REDIS_URL);
-
-/*const Bull = require('bull');
-const visionQueue = new Bull('visionQueue', process.env.REDIS_URL || {
-  host: '127.0.0.1',
-  port: 6379
-});*/
-
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
     }
-
-    // Extract fields from the request body.
+    
+    // Extract the fields from the request body.
     const { title, description, linkUrl, price } = req.body;
-    const imageUrl = req.file.location;
+    const imageUrl = req.file.location;  // S3 URL
 
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: "User not authenticated" });
     }
-
-    // Log the input (optional)
+    
     console.log("Received post data:", { title, description, linkUrl, price, imageUrl });
-
-    // Process the price.
+    
+    // Process price.
     const priceValue = Number(price);
-    const priceRange = categorizePrice(priceValue);  // assume this function is available
-
-    // Create the post document with the basic fields.
+    const priceRange = categorizePrice(priceValue);
+    
+    // Create a new Post document with basic fields and an empty attributes object.
     const newPost = new Post({
       imageUrl,
       title: title || "No title provided",
@@ -139,23 +129,21 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
       uploader: req.user.id,
       price: priceValue,
       priceRange: priceRange,
-      // Do not add computed attributes yet. They will be updated by the vision job.
+      attributes: {}  // will be filled in by vision processing
     });
-
+    
     await newPost.save();
-    console.log("New post saved:", newPost);
-
-    // Enqueue a vision processing job.
-    // Pass in the post ID and the fields needed for vision processing.
+    
+    // Add a job to the visionQueue so that the worker will process the image.
     await visionQueue.add({
       postId: newPost._id,
       imageUrl,
-      title,
-      description
+      description,
+      title
     });
-
-    // Immediately return a response; the vision job will update the post later.
-    res.status(201).json({ message: "Post created successfully; vision analysis in progress", post: newPost });
+    
+    // Respond immediately to the client.
+    res.status(201).json({ message: "Post created successfully; vision processing queued", post: newPost });
   } catch (error) {
     console.error("Error creating post:", error);
     res.status(500).json({ message: "Error creating post", error: error.toString() });
