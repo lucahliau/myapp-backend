@@ -489,5 +489,5 @@ tf.setBackend('cpu').then(() => {
   console.log("TensorFlow backend set to:", tf.getBackend());
   // Replace with a publicly accessible image URL.
   const imageUrl = 'https://media-photos.depop.com/b1/33111251/2463010366_8d8a5b2de3014883ada2faa5dd2d15ea/P1.jpg';
-  analyzeImage(imageUrl);
+  analyzeImageAndCategorize(imageUrl, description, title);
 });
