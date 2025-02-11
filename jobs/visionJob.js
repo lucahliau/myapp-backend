@@ -190,7 +190,7 @@ const defaultAttributes = {
   western: 0
 };
 
-module.exports = function(agenda) {
+
   // Define the job with Agenda
   agenda.define('process vision job', async job => {
     const { postId, imageUrl, description, title } = job.attrs.data;
@@ -215,5 +215,6 @@ module.exports = function(agenda) {
       throw error;
     }
   });
-};
+
+
 
