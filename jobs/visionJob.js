@@ -202,7 +202,7 @@ const defaultAttributes = {
 
       // Merge the computed scores with the default attributes.
       const updatedAttributes = { ...defaultAttributes, ...computedAttributes };
-
+      console.log("updated attributes:", updatedAttributes);
       // Update the post so that the 'attributes' field is set to the merged object.
       const updatedPost = await Post.findOneAndUpdate(
         { _id: postId },
