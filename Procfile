@@ -1,2 +1,2 @@
 web: node server.js
-worker: node visionWorker.js
+worker: node worker.js
