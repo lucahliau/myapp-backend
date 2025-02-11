@@ -231,7 +231,7 @@ async function analyzeImageAndCategorize(imageUrl, description, title) {
     const combinedCategorization = await combineAllSources(visionLabels, manualDescription, normalizedTitle, attributesDictionary);
     console.log("\nCombined Hybrid Categorization (with weighted and summed scores):");
     console.log(JSON.stringify(combinedCategorization, null, 2));
-
+    return combinedCategorization;
     // (In your backend, you would then save these values into the corresponding fields of your Post document.)
   } catch (error) {
     console.error("Error analyzing image:", error);
