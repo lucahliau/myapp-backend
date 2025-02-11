@@ -103,7 +103,11 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
 // Import our FlowProducer instance.
 const flowProducer = require('../flowQueue');
 
+// Import the Agenda instance so that we can enqueue a job.
+const agenda = require('../agenda');
+
 // POST /create route
+// POST /create: Create a new post.
 router.post('/create', authMiddleware, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
@@ -111,48 +115,36 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
     }
 
     const { title, description, linkUrl, price } = req.body;
-    const imageUrl = req.file.location; // URL from S3
-
+    const imageUrl = req.file.location; // S3 URL
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: "User not authenticated" });
     }
 
     console.log("Received post data:", { title, description, linkUrl, price, imageUrl });
 
-    // Process the price.
-    const priceValue = Number(price);
-    const priceRange = categorizePrice(priceValue);
-
-    // Create a new Post document (with an empty attributes object initially).
+    // Create and save the post (attributes field will be updated later by the worker).
     const newPost = new Post({
       imageUrl,
       title: title || "No title provided",
       description: description || "",
       linkUrl: linkUrl || "",
       uploader: req.user.id,
-      price: priceValue,
-      priceRange: priceRange,
-      attributes: {} // will be updated by the vision worker
+      price: Number(price),
+      priceRange: categorizePrice(Number(price)),
+      attributes: {} // Initially empty; will be filled by the vision worker.
     });
-
+    
     await newPost.save();
 
-    // Enqueue a vision job using the FlowProducer.
-    await flowProducer.add({
-      name: 'visionJob',
-      queueName: 'visionQueue',
-      data: {
-        postId: newPost._id,
-        imageUrl,
-        description,
-        title
-      }
+    // Enqueue a vision processing job for this post.
+    await agenda.now('process vision job', {
+      postId: newPost._id,
+      imageUrl: newPost.imageUrl,
+      description: newPost.description,
+      title: newPost.title
     });
 
-    res.status(201).json({
-      message: "Post created successfully; vision processing queued",
-      post: newPost,
-    });
+    res.status(201).json({ message: "Post created successfully", post: newPost });
   } catch (error) {
     console.error("Error creating post:", error);
     res.status(500).json({ message: "Error creating post", error: error.toString() });
