@@ -2,6 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
+const { calculatePreferenceCenters } = require('./preferenceUtils');
+
+// In your swipe route (after updating the user's likedPosts/dislikedPosts arrays):
+// ...
+
 // We’ll use a simple authentication middleware (to be created next)
 const authMiddleware = require('../middleware/auth');
 
@@ -22,6 +27,10 @@ router.post('/swipe', authMiddleware, async (req, res) => {
     }
 
     await user.save();
+    if ((user.likedPosts.length + user.dislikedPosts.length) >= 30) {
+      calculatePreferenceCenters(user._id);
+    }
+    
     res.status(200).json({ message: 'Action recorded' });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
