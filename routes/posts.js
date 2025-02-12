@@ -312,12 +312,23 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
 // GET /: Get all posts (for the mobile feed).
 router.get('/', async (req, res) => {
   try {
-    const posts = await Post.find().sort({ createdAt: -1 });
+    // Get the page from the query string (default to 1 if not provided)
+    const page = parseInt(req.query.page) || 1;
+    const limit = 30; // number of posts per page
+    const skip = (page - 1) * limit;
+
+    // Find posts, sort them, skip and limit accordingly
+    const posts = await Post.find()
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
     res.status(200).json(posts);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
 });
+
 
 // GET /myPosts: Get posts uploaded by the authenticated user (desktop view).
 router.get('/myPosts', authMiddleware, async (req, res) => {
@@ -328,7 +339,7 @@ router.get('/myPosts', authMiddleware, async (req, res) => {
     console.error("Error fetching myPosts:", error);
     res.status(500).json({ message: "Server error", error: error.toString() });
   }
-});
+});/
 
 module.exports = router;
 
