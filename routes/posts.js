@@ -339,7 +339,7 @@ router.get('/myPosts', authMiddleware, async (req, res) => {
     console.error("Error fetching myPosts:", error);
     res.status(500).json({ message: "Server error", error: error.toString() });
   }
-});/
+});
 
 module.exports = router;
 
