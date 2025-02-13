@@ -25,11 +25,15 @@ def main():
         # Read all input from stdin
         input_data = sys.stdin.read()
         data = json.loads(input_data)
-        liked_descriptions = data.get("liked", [])
-        disliked_descriptions = data.get("disliked", [])
+        # Adjusted keys to match what Node sends
+        liked_descriptions = data.get("likedDescriptions", [])
+        disliked_descriptions = data.get("dislikedDescriptions", [])
+        
         liked_centers = cluster_descriptions(liked_descriptions) if liked_descriptions else []
         disliked_centers = cluster_descriptions(disliked_descriptions) if disliked_descriptions else []
-        output = {"liked": liked_centers, "disliked": disliked_centers}
+        
+        # Adjusted output keys to match what Node expects
+        output = {"likedClusters": liked_centers, "dislikedClusters": disliked_centers}
         print(json.dumps(output))
     except Exception as e:
         sys.stderr.write(f"Error: {str(e)}")

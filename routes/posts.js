@@ -5,7 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const Post = require('../models/Post'); // Make sure your Post model is updated with extra fields.
 const authMiddleware = require('../middleware/auth');
-
+const { spawn } = require('child_process');
 const AWS = require('aws-sdk');
 const multerS3 = require('multer-s3');
 
@@ -310,7 +310,7 @@ router.post('/create', authMiddleware, upload.single('image'), async (req, res) 
 });
 
 // GET /: Get all posts (for the mobile feed).
-router.get('/', async (req, res) => {
+/*router.get('/', async (req, res) => {
   try {
     // Get the page from the query string (default to 1 if not provided)
     const page = parseInt(req.query.page) || 1;
@@ -326,6 +326,137 @@ router.get('/', async (req, res) => {
     res.status(200).json(posts);
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
+  }
+});*/
+function runPythonRecommendation(likedClusters, dislikedClusters, samplePosts) {
+  return new Promise((resolve, reject) => {
+    // Prepare the JSON payload for Python
+    const dataToSend = JSON.stringify({
+      likedClusters,
+      dislikedClusters,
+      posts: samplePosts
+    });
+
+    // Adjust the path to your python script as needed.
+    const pythonProcess = spawn('python3', ['path/to/recommendation.py']);
+
+    let result = '';
+    pythonProcess.stdout.on('data', data => {
+      result += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', data => {
+      console.error(`recommendation.py error: ${data}`);
+    });
+
+    pythonProcess.on('close', code => {
+      try {
+        const recommendedPosts = JSON.parse(result);
+        resolve(recommendedPosts);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    // Write the JSON input to the Python script and close stdin.
+    pythonProcess.stdin.write(dataToSend);
+    pythonProcess.stdin.end();
+  });
+}
+
+// Helper function to call calculatePreferences.py
+function runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions) {
+  return new Promise((resolve, reject) => {
+    const dataToSend = JSON.stringify({
+      likedDescriptions,
+      dislikedDescriptions
+    });
+
+    // Adjust the path to your python script as needed.
+    const pythonProcess = spawn('python3', ['path/to/calculatePreferences.py']);
+
+    let result = '';
+    pythonProcess.stdout.on('data', data => {
+      result += data.toString();
+    });
+
+    pythonProcess.stderr.on('data', data => {
+      console.error(`calculatePreferences.py error: ${data}`);
+    });
+
+    pythonProcess.on('close', code => {
+      try {
+        // Expecting an object like { likedClusters: [...], dislikedClusters: [...] }
+        const clusters = JSON.parse(result);
+        resolve(clusters);
+      } catch (err) {
+        reject(err);
+      }
+    });
+
+    pythonProcess.stdin.write(dataToSend);
+    pythonProcess.stdin.end();
+  });
+}
+
+router.get('/', authMiddleware, async (req, res) => {
+  try {
+    // Get the user and populate liked/disliked posts (to access descriptions later)
+    const user = await User.findById(req.user.id).populate('likedPosts dislikedPosts');
+
+    const likedCount = user.likedPosts ? user.likedPosts.length : 0;
+    const dislikedCount = user.dislikedPosts ? user.dislikedPosts.length : 0;
+    const totalInteractions = likedCount + dislikedCount;
+
+    if (totalInteractions < 30) {
+      // User hasn't interacted enough; return 30 random posts.
+      const randomPosts = await Post.aggregate([{ $sample: { size: 30 } }]);
+      return res.status(200).json(randomPosts);
+    } else {
+      // User has at least 30 interactions.
+      // First, check if clusters already exist.
+      if (
+        user.likedClusters && Array.isArray(user.likedClusters) && user.likedClusters.length &&
+        user.dislikedClusters && Array.isArray(user.dislikedClusters) && user.dislikedClusters.length
+      ) {
+        // Clusters exist: sample 180 posts and run recommendation.py
+        const samplePosts = await Post.aggregate([{ $sample: { size: 180 } }]);
+        const recommendedPosts = await runPythonRecommendation(
+          user.likedClusters,
+          user.dislikedClusters,
+          samplePosts
+        );
+        return res.status(200).json(recommendedPosts);
+      } else {
+        // Clusters do not exist: calculate preferences first.
+        // Extract descriptions from liked/disliked posts (adjust field name as needed)
+        const likedDescriptions = user.likedPosts.map(post => post.description);
+        const dislikedDescriptions = user.dislikedPosts.map(post => post.description);
+
+        // Run calculatePreferences.py to get clusters.
+        const { likedClusters, dislikedClusters } = await runPythonCalculatePreferences(
+          likedDescriptions,
+          dislikedDescriptions
+        );
+
+        // Update the user document with the new clusters.
+        user.likedClusters = likedClusters;
+        user.dislikedClusters = dislikedClusters;
+        await user.save();
+
+        // Now that clusters exist, run recommendation.py as before.
+        const samplePosts = await Post.aggregate([{ $sample: { size: 180 } }]);
+        const recommendedPosts = await runPythonRecommendation(
+          likedClusters,
+          dislikedClusters,
+          samplePosts
+        );
+        return res.status(200).json(recommendedPosts);
+      }
+    }
+  } catch (error) {
+    console.error("Error in GET /posts:", error);
+    res.status(500).json({ message: 'Server error', error: error.toString() });
   }
 });
 
