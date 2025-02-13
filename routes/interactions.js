@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
-const { calculatePreferenceCenters } = require('./preferenceUtils');
+const { calculatePreferenceCenters } = require('../preferenceUtils');
 
 // In your swipe route (after updating the user's likedPosts/dislikedPosts arrays):
 // ...
