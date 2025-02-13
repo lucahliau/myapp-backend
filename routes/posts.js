@@ -338,7 +338,7 @@ function runPythonRecommendation(likedClusters, dislikedClusters, samplePosts) {
     });
 
     // Adjust the path to your python script as needed.
-    const pythonProcess = spawn('python3', ['path/to/recommendation.py']);
+    const pythonProcess = spawn('python3', ['../recommendation.py']);
 
     let result = '';
     pythonProcess.stdout.on('data', data => {
@@ -373,7 +373,7 @@ function runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions) 
     });
 
     // Adjust the path to your python script as needed.
-    const pythonProcess = spawn('python3', ['path/to/calculatePreferences.py']);
+    const pythonProcess = spawn('python3', ['../calculatePreferences.py']);
 
     let result = '';
     pythonProcess.stdout.on('data', data => {
