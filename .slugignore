@@ -1,0 +1,17 @@
+# Exclude git metadata and logs
+.git
+.gitignore
+.gitmodules
+
+# Exclude Python cache files
+__pycache__
+*.pyc
+*.pyo
+
+# Exclude local data files and large directories that are not needed
+data/
+local_data/
+tests/
+docs/
+*.log
+.cache/
