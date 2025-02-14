@@ -1,12 +1,19 @@
 services:
   - type: web
     name: myapp-backend
-    env: node
-    plan: free  # or your chosen plan
-    region: oregon   # change to your preferred region
-    buildCommand: npm install
-    startCommand: npm start
-    build:
-      buildpacks:
-        - https://github.com/heroku/heroku-buildpack-python
-        - https://github.com/heroku/heroku-buildpack-nodejs
+    env: docker
+    buildCommand: docker build -t myapp-backend .
+    startCommand: docker run -p $PORT:10000 myapp-backend
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: MONGO_URI
+        value: "<your_mongo_uri>"
+      - key: AWS_ACCESS_KEY_ID
+        value: "<your_aws_access_key>"
+      - key: AWS_SECRET_ACCESS_KEY
+        value: "<your_aws_secret>"
+      - key: AWS_REGION
+        value: "<your_aws_region>"
+      - key: AWS_BUCKET_NAME
+        value: "<your_bucket_name>"
