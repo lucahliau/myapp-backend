@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: myapp-backend
+    env: node
+    plan: free  # or your chosen plan
+    region: oregon   # change to your preferred region
+    buildCommand: npm install
+    startCommand: npm start
+    build:
+      buildpacks:
+        - https://github.com/heroku/heroku-buildpack-python
+        - https://github.com/heroku/heroku-buildpack-nodejs
