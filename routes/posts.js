@@ -42,7 +42,7 @@ function runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions) 
       likedDescriptions,
       dislikedDescriptions
     });
-    const pythonProcess = spawn('python3', ['../calculatePreferences.py']);
+    const pythonProcess = spawn('python3', ['./calculatePreferences.py']);
     let result = '';
     pythonProcess.stdout.on('data', data => {
       result += data.toString();
