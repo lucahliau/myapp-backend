@@ -12,6 +12,8 @@ WORKDIR /app
 # Copy dependency definitions
 COPY package*.json ./
 
+COPY requirements.txt ./
+
 # Install Node dependencies (use --production for production builds)
 RUN npm install --production
 
