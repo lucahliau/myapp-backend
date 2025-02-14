@@ -190,8 +190,10 @@ router.get('/', authMiddleware, async (req, res) => {
       } else {
         console.log("No clusters found for user. Calculating clusters from liked/disliked descriptions.");
         // Extract non-empty descriptions from liked and disliked posts.
-        const likedDescriptions = user.likedPosts.map(post => post.description).filter(Boolean);
-        const dislikedDescriptions = user.dislikedPosts.map(post => post.description).filter(Boolean);
+      //  const likedDescriptions = user.likedPosts.map(post => post.description).filter(Boolean);
+       // const dislikedDescriptions = user.dislikedPosts.map(post => post.description).filter(Boolean);
+        const likedDescriptions = user.likedPosts.map(post => post["product_description:"]).filter(Boolean);
+        const dislikedDescriptions = user.dislikedPosts.map(post => post["product_description:"]).filter(Boolean);
         console.log("Liked Descriptions:", likedDescriptions);
         console.log("Disliked Descriptions:", dislikedDescriptions);
         
