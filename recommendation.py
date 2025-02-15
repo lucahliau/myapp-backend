@@ -157,6 +157,15 @@ import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
+import signal
+
+# Optionally catch SIGPIPE so that a broken pipe doesn't kill the process silently.
+def handle_sigpipe(signum, frame):
+    sys.stderr.write("Received SIGPIPE. Exiting.\n")
+    sys.stdout.flush()
+    sys.exit(1)
+
+signal.signal(signal.SIGPIPE, handle_sigpipe)
 
 def get_products_dataframe(posts, model):
     """
@@ -171,10 +180,8 @@ def get_products_dataframe(posts, model):
             description = post.get('description', '')
             embedding = post.get('embedding', None)
             if embedding is None:
-                # Compute the embedding using the description
                 embedding = model.encode(description).tolist()
             else:
-                # If provided as a string, attempt to convert it
                 if isinstance(embedding, str):
                     try:
                         embedding = eval(embedding)
@@ -187,9 +194,14 @@ def get_products_dataframe(posts, model):
                 "embedding": np.array(embedding)
             })
         except Exception as e:
-            sys.stderr.write(f"Error processing post: {e}\n")
+            sys.stderr.write(f"Error processing post {post}: {e}\n")
             continue
-    return pd.DataFrame(data)
+    try:
+        df = pd.DataFrame(data)
+        return df
+    except Exception as e:
+        sys.stderr.write(f"Error creating DataFrame: {e}\n")
+        raise
 
 def recommend_products(user_liked_centers, user_disliked_centers, products_df, top_n=30, dislike_weight=1.0):
     """
@@ -209,14 +221,15 @@ def recommend_products(user_liked_centers, user_disliked_centers, products_df, t
             product_scores.append(final_score)
         except Exception as e:
             sys.stderr.write(f"Error scoring product at index {idx}: {e}\n")
-            product_scores.append(-9999)  # Penalize if error occurs
+            product_scores.append(-9999)
     products_df["final_score"] = product_scores
     recommended = products_df.sort_values("final_score", ascending=False)
     return recommended.head(top_n)
 
 def main():
+    # Wrap the entire main process to catch unexpected errors.
     try:
-        # Read the entire input from stdin
+        # Read input from stdin
         input_data = sys.stdin.read()
         if not input_data:
             sys.stderr.write("No input data received.\n")
@@ -225,27 +238,29 @@ def main():
             sys.exit(1)
         sys.stderr.write(f"Received input data: {input_data}\n")
     except Exception as e:
-        sys.stderr.write(f"Error reading input data: {e}\n")
-        print(json.dumps({"error": "Error reading input data", "details": str(e)}))
-        sys.stdout.flush()
-        sys.exit(1)
-
-    try:
-        data = json.loads(input_data)
-    except Exception as e:
-        sys.stderr.write(f"Error parsing JSON input: {e}\n")
-        print(json.dumps({"error": "Error parsing JSON input", "details": str(e)}))
+        sys.stderr.write(f"Error reading input: {e}\n")
+        print(json.dumps({"error": "Error reading input", "details": str(e)}))
         sys.stdout.flush()
         sys.exit(1)
     
-    # Extract required fields
+    # Parse JSON input.
+    try:
+        data = json.loads(input_data)
+    except Exception as e:
+        sys.stderr.write(f"Error parsing JSON: {e}\n")
+        print(json.dumps({"error": "Error parsing JSON", "details": str(e)}))
+        sys.stdout.flush()
+        sys.exit(1)
+    
+    # Extract clusters and posts.
     liked_clusters = data.get("likedClusters", [])
     disliked_clusters = data.get("dislikedClusters", [])
     posts = data.get("posts", [])
-
+    
     if not liked_clusters or not posts:
-        sys.stderr.write("Missing required data: likedClusters and posts are required.\n")
-        print(json.dumps({"error": "Missing required data: likedClusters and posts are required."}))
+        msg = "Missing required data: likedClusters and posts are required."
+        sys.stderr.write(msg + "\n")
+        print(json.dumps({"error": msg}))
         sys.stdout.flush()
         sys.exit(1)
     
@@ -257,18 +272,19 @@ def main():
         print(json.dumps({"error": "Error processing clusters", "details": str(e)}))
         sys.stdout.flush()
         sys.exit(1)
-
-    # Initialize the model
+    
+    # Initialize the model.
     sys.stderr.write("Initializing SentenceTransformer model...\n")
     try:
         model = SentenceTransformer('all-MiniLM-L6-v2')
     except Exception as e:
-        sys.stderr.write(f"Error loading SentenceTransformer model: {e}\n")
+        sys.stderr.write(f"Error loading model: {e}\n")
         print(json.dumps({"error": "Error loading model", "details": str(e)}))
         sys.stdout.flush()
         sys.exit(1)
     sys.stderr.write("Model loaded successfully.\n")
     
+    # Build the products DataFrame.
     try:
         products_df = get_products_dataframe(posts, model)
     except Exception as e:
@@ -277,6 +293,7 @@ def main():
         sys.stdout.flush()
         sys.exit(1)
     
+    # Compute recommendations.
     try:
         recommendations = recommend_products(
             user_liked_centers,
@@ -290,7 +307,8 @@ def main():
         print(json.dumps({"error": "Error computing recommendations", "details": str(e)}))
         sys.stdout.flush()
         sys.exit(1)
-
+    
+    # Prepare output.
     try:
         recommendations_list = recommendations[['id', 'description', 'final_score']].to_dict(orient='records')
     except Exception as e:
@@ -298,7 +316,7 @@ def main():
         print(json.dumps({"error": "Error preparing output", "details": str(e)}))
         sys.stdout.flush()
         sys.exit(1)
-
+    
     try:
         output = json.dumps(recommendations_list)
         print(output)
@@ -311,3 +329,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
