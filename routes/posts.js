@@ -311,7 +311,11 @@ router.get('/', authMiddleware, async (req, res) => {
         );
       }
 
-      // At this point, recommendedIds is an array of post IDs returned from the Python script.
+      // If recommendedIds are objects, extract the id property.
+      if (recommendedIds.length && typeof recommendedIds[0] === 'object') {
+        recommendedIds = recommendedIds.map(item => item.id);
+      }
+
       // Now, fetch the full post details for these IDs from MongoDB (only the specified fields).
       const posts = await Post.find(
         { _id: { $in: recommendedIds } },
