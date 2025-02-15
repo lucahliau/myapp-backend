@@ -197,7 +197,7 @@ const axios = require('axios');
 async function getClusters(likedDescriptions, dislikedDescriptions) {
   try {
     const response = await axios.post(
-      'recommendation-service-70za:10000/calculatePreferences',
+      'http://recommendation-service-70za:10000/calculatePreferences',
       { likedDescriptions, dislikedDescriptions }
     );
     return response.data; // Expected: { likedClusters: [...], dislikedClusters: [...] }
@@ -211,7 +211,7 @@ async function getClusters(likedDescriptions, dislikedDescriptions) {
 async function getRecommendedPosts(likedClusters, dislikedClusters, samplePosts) {
   try {
     const response = await axios.post(
-      'recommendation-service-70za:10000/recommend',
+      'http://recommendation-service-70za:10000/recommend',
       { likedClusters, dislikedClusters, posts: samplePosts }
     );
     return response.data; // Expected: an array of recommended posts (or their IDs)
