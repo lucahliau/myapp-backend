@@ -1,0 +1,21 @@
+# Exclude node modules (they’ll be installed inside the container)
+node_modules
+
+# Exclude local logs, caches, and environment files
+npm-debug.log
+.env
+*.log
+
+# Exclude Git files and directories
+.git
+.gitignore
+
+# Exclude documentation and tests (if not needed in production)
+README.md
+docs
+tests
+coverage
+
+# Exclude Docker-specific files if you don’t need them in your image
+Dockerfile*
+docker-compose*
