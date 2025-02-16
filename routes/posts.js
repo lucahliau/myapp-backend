@@ -30,11 +30,11 @@ function runPythonRecommendation(likedClusters, dislikedClusters, samplePosts) {
       }
     });
 
-    // Set a timeout to kill the process if it hangs (30 seconds here)
+    // Set a timeout to kill the process if it hangs (12 seconds here)
     const timeout = setTimeout(() => {
       pythonProcess.kill('SIGTERM');
       reject(new Error('recommendation.py timed out'));
-    }, 30000);
+    }, 120000);
 
     pythonProcess.stdout.on('data', data => {
       result += data.toString();
@@ -79,11 +79,11 @@ function runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions) 
       }
     });
 
-    // Set a timeout to kill the process if it hangs (30 seconds here)
+    // Set a timeout to kill the process if it hangs (120 seconds here)
     const timeout = setTimeout(() => {
       pythonProcess.kill('SIGTERM');
       reject(new Error('calculatePreferences.py timed out'));
-    }, 30000);
+    }, 120000);
 
     pythonProcess.stdout.on('data', data => {
       result += data.toString();
