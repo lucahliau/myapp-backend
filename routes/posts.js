@@ -1,4 +1,4 @@
-/*
+
 // routes/posts.js
 const express = require('express');
 const router = express.Router();
@@ -184,7 +184,7 @@ router.get('/myPosts', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-*/
+/*
 // routes/posts.js
 const express = require('express');
 const router = express.Router();
@@ -337,3 +337,4 @@ router.get('/myPosts', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+*/
