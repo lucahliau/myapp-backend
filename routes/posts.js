@@ -31,7 +31,7 @@ function runPythonRecommendation(likedClusters, dislikedClusters, samplePosts) {
     const timeout = setTimeout(() => {
       pythonProcess.kill('SIGTERM');
       reject(new Error('recommendation.py timed out'));
-    }, 120000);
+    }, 240000);
 
     pythonProcess.stdout.on('data', data => {
       result += data.toString();
@@ -80,7 +80,7 @@ function runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions) 
     const timeout = setTimeout(() => {
       pythonProcess.kill('SIGTERM');
       reject(new Error('calculatePreferences.py timed out'));
-    }, 120000);
+    }, 240000);
 
     pythonProcess.stdout.on('data', data => {
       result += data.toString();
