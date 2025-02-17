@@ -167,7 +167,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
 });
 
 
-router.get('/profile', authMiddleware, async (req, res) => {
+/*router.get('/profile', authMiddleware, async (req, res) => {
   try {
     // Find the user by the ID from the token and populate liked and disliked posts
     const user = await User.findById(req.user.id).populate('likedPosts dislikedPosts');
@@ -182,6 +182,28 @@ router.get('/profile', authMiddleware, async (req, res) => {
     console.error("Error in profile route:", error);
     res.status(500).json({ message: 'Server error', error: error.toString() });
   }
+});*/
+// GET /api/auth/profile
+router.get('/profile', authMiddleware, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    // Return full user details (consider omitting sensitive fields like the raw password in production)
+    res.json({
+      id: user._id,
+      username: user.username,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      password: user.password
+    });
+  } catch (error) {
+    console.error("Error in profile route:", error);
+    res.status(500).json({ message: 'Server error', error: error.toString() });
+  }
 });
+
 
 module.exports = router;
