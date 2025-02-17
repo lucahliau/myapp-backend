@@ -313,21 +313,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
   }
 });
 
-router.get('/:id', authMiddleware, async (req, res) => {
-  try {
-    const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
-    res.status(200).json({
-      _id: post._id.toString(), // Ensure the ID is a string
-      "image_url:": post.imageUrl,
-      "product_description:": post.productDescription,
-      "title:": post.title,
-      "price:": post.price
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.toString() });
-  }
-});
+
 
 
 module.exports = router;
