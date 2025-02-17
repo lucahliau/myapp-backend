@@ -145,6 +145,28 @@ router.post('/login', async (req, res) => {
 // Protected profile endpoint
 const authMiddleware = require('../middleware/auth');
 
+// Update profile endpoint
+router.put('/profile', authMiddleware, async (req, res) => {
+  const { firstName, lastName, password } = req.body;
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    
+    if (firstName) user.firstName = firstName;
+    if (lastName) user.lastName = lastName;
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      user.password = hashedPassword;
+    }
+    await user.save();
+    res.status(200).json({ message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error("Error updating profile:", error);
+    res.status(500).json({ message: 'Server error', error: error.toString() });
+  }
+});
+
+
 router.get('/profile', authMiddleware, async (req, res) => {
   try {
     // Find the user by the ID from the token and populate liked and disliked posts
