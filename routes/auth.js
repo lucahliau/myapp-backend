@@ -317,9 +317,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ message: 'Post not found' });
-    // Use projection to return only the fields you need (with proper keys)
     res.status(200).json({
-      _id: post._id,
+      _id: post._id.toString(), // Ensure the ID is a string
       "image_url:": post.imageUrl,
       "product_description:": post.productDescription,
       "title:": post.title,
@@ -329,5 +328,6 @@ router.get('/:id', authMiddleware, async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.toString() });
   }
 });
+
 
 module.exports = router;
