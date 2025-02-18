@@ -9,8 +9,9 @@ const CommunityPost = require('../models/CommunityPost');
  *  - Retrieves all users.
  *  - Tallies likedPosts (assumed to be an array of Post ObjectIds on each user).
  *  - Sorts the post IDs by like count (descending) and takes the top 20.
- *  - Clears the communityPosts collection and inserts the full post documents
- *    corresponding to the top post IDs.
+ *  - Deletes any posts in the communityPosts collection.
+ *  - Inserts the full post documents into the communityPosts collection,
+ *    each with an assigned orderPosition (1 = most popular, 2 = second, etc.).
  */
 async function updateCommunityPosts() {
   try {
@@ -20,9 +21,8 @@ async function updateCommunityPosts() {
     const users = await User.find({});
     const likeCountMap = {};
 
-    // For each user, tally likedPosts.
+    // Tally likedPosts for each user.
     users.forEach(user => {
-      // Assuming each user document has a likedPosts array (of ObjectIds)
       if (user.likedPosts && Array.isArray(user.likedPosts)) {
         user.likedPosts.forEach(postId => {
           const idStr = postId.toString();
@@ -31,8 +31,7 @@ async function updateCommunityPosts() {
       }
     });
 
-    // Create an array of [postId, count] pairs, sort descending by count,
-    // then take the top 20 (or fewer if there are not 20 liked posts).
+    // Create an array of [postId, count] pairs, sort descending by count, and take the top 20.
     const sortedPosts = Object.entries(likeCountMap)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 20)
@@ -49,15 +48,22 @@ async function updateCommunityPosts() {
     }
 
     // Retrieve the full Post documents corresponding to these IDs.
-    let topPosts = await Post.find({ _id: { $in: sortedPosts } });
+    const topPostsDocs = await Post.find({ _id: { $in: sortedPosts } });
 
-    // Optional: sort the retrieved posts in the same order as sortedPosts.
-    topPosts = sortedPosts
-      .map(id => topPosts.find(post => post._id.toString() === id))
-      .filter(post => post); // remove any undefined in case a post wasn't found
+    // Create a new array with the orderPosition added, using the order of sortedPosts.
+    const postsWithOrder = sortedPosts.map((postId, index) => {
+      // Find the post document that matches this id.
+      const post = topPostsDocs.find(p => p._id.toString() === postId);
+      if (post) {
+        // Convert to a plain object and add the orderPosition field.
+        const postObj = post.toObject();
+        postObj.orderPosition = index + 1; // 1 for the top post, 2 for the next, etc.
+        return postObj;
+      }
+    }).filter(Boolean); // Remove any undefined entries
 
-    // Insert the top posts into the communityPosts collection.
-    await CommunityPost.insertMany(topPosts);
+    // Insert the posts (with orderPosition) into the communityPosts collection.
+    await CommunityPost.insertMany(postsWithOrder);
     console.log("Community posts updated successfully.");
   } catch (error) {
     console.error("Error updating community posts:", error);
@@ -65,8 +71,6 @@ async function updateCommunityPosts() {
 }
 
 // Schedule the job to run every day at midnight EST.
-// Cron expression: '0 0 * * *' means minute 0, hour 0, every day.
-// The timezone option ensures midnight in the "America/New_York" timezone.
 cron.schedule('0 0 * * *', () => {
   console.log("Scheduled job triggered at midnight EST");
   updateCommunityPosts();
@@ -74,5 +78,5 @@ cron.schedule('0 0 * * *', () => {
   timezone: "America/New_York"
 });
 
-// Export the function so that it can be called on server startup.
+// Export the function so it can be called on server startup.
 module.exports = updateCommunityPosts;
