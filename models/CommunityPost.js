@@ -10,7 +10,8 @@ const CommunityPostSchema = new mongoose.Schema({
   "product_description:": { type: String },
   orderPosition: { type: Number, default: null }
 
-}, timestamps: true,
+}, {
+  timestamps: true,
   // Specify a custom collection name to avoid conflicts with the Post model.
   collection: 'communityPosts'});
 
