@@ -7,7 +7,9 @@ const CommunityPostSchema = new mongoose.Schema({
   uploader: { type: String, required: true },
   "price:": { type: Number, required: true },
   priceRange: { type: String },
-  "product_description:": { type: String }
+  "product_description:": { type: String },
+  orderPosition: { type: Number, default: null }
+
 }, timestamps: true,
   // Specify a custom collection name to avoid conflicts with the Post model.
   collection: 'communityPosts'});
