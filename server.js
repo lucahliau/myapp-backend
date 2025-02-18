@@ -120,3 +120,9 @@ app.get('/', (req, res) => {
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
+// For example, in server.js or app.js
+const updateCommunityPosts = require('./tasks/communityPostsJob');
+
+// Run the update job on startup
+updateCommunityPosts();
+
