@@ -1,108 +1,35 @@
-/*const express = require('express');
+const express = require('express');
 const router = express.Router();
 const Post = require('../models/Post');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
-const { spawn } = require('child_process');
 const axios = require('axios');
 
-// Python runner for recommendation
-function runPythonRecommendation(likedClusters, dislikedClusters, samplePosts) {
-  return new Promise((resolve, reject) => {
-    const dataToSend = JSON.stringify({
-      likedClusters,
-      dislikedClusters,
-      posts: samplePosts
-    });
-    const pythonProcess = spawn('python3', ['./recommendation.py']);
-    let result = '';
+// Base URL of the deployed Python recommendation service
+const PYTHON_SERVICE_URL = 'https://recommendation-service-70za.onrender.com';
 
-    pythonProcess.on('error', (err) => {
-      console.error('Failed to start recommendation.py:', err);
-      reject(err);
-    });
-
-    pythonProcess.on('exit', (code, signal) => {
-      if (code === null) {
-        console.error(`recommendation.py terminated due to signal: ${signal}`);
-      }
-    });
-
-    const timeout = setTimeout(() => {
-      pythonProcess.kill('SIGTERM');
-      reject(new Error('recommendation.py timed out'));
-    }, 240000);
-
-    pythonProcess.stdout.on('data', data => {
-      result += data.toString();
-    });
-
-    pythonProcess.stderr.on('data', data => {
-      console.error(`recommendation.py error: ${data}`);
-    });
-
-    pythonProcess.on('close', code => {
-      clearTimeout(timeout);
-      try {
-        const recommendedPosts = JSON.parse(result);
-        resolve(recommendedPosts);
-      } catch (err) {
-        reject(err);
-      }
-    });
-
-    pythonProcess.stdin.write(dataToSend);
-    pythonProcess.stdin.end();
-  });
+// Call the Python service to calculate clusters/preferences
+async function callCalculatePreferences(likedDescriptions, dislikedDescriptions) {
+  try {
+    const payload = { likedDescriptions, dislikedDescriptions };
+    const response = await axios.post(`${PYTHON_SERVICE_URL}/calculate_preferences`, payload);
+    return response.data;
+  } catch (err) {
+    console.error('Error calling calculate_preferences service:', err);
+    throw err;
+  }
 }
 
-// Python runner for calculating preferences/clusters
-function runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions) {
-  return new Promise((resolve, reject) => {
-    const dataToSend = JSON.stringify({
-      likedDescriptions,
-      dislikedDescriptions
-    });
-    const pythonProcess = spawn('python3', ['./calculatePreferences.py']);
-    let result = '';
-
-    pythonProcess.on('error', (err) => {
-      console.error('Failed to start calculatePreferences.py:', err);
-      reject(err);
-    });
-
-    pythonProcess.on('exit', (code, signal) => {
-      if (code === null) {
-        console.error(`calculatePreferences.py terminated due to signal: ${signal}`);
-      }
-    });
-
-    const timeout = setTimeout(() => {
-      pythonProcess.kill('SIGTERM');
-      reject(new Error('calculatePreferences.py timed out'));
-    }, 240000);
-
-    pythonProcess.stdout.on('data', data => {
-      result += data.toString();
-    });
-
-    pythonProcess.stderr.on('data', data => {
-      console.error(`calculatePreferences.py error: ${data}`);
-    });
-
-    pythonProcess.on('close', code => {
-      clearTimeout(timeout);
-      try {
-        const clusters = JSON.parse(result);
-        resolve(clusters);
-      } catch (err) {
-        reject(err);
-      }
-    });
-
-    pythonProcess.stdin.write(dataToSend);
-    pythonProcess.stdin.end();
-  });
+// Call the Python service to get recommendations
+async function callRecommend(likedClusters, dislikedClusters, samplePosts) {
+  try {
+    const payload = { likedClusters, dislikedClusters, posts: samplePosts };
+    const response = await axios.post(`${PYTHON_SERVICE_URL}/recommend`, payload);
+    return response.data;
+  } catch (err) {
+    console.error('Error calling recommend service:', err);
+    throw err;
+  }
 }
 
 router.get('/', authMiddleware, async (req, res) => {
@@ -120,7 +47,7 @@ router.get('/', authMiddleware, async (req, res) => {
       console.log("Total interactions less than 30. Returning 30 random posts.");
       const randomPosts = await Post.aggregate([
         { $sample: { size: 30 } },
-        { $project: { _id: 1, "image_url:": 1, "product_description:": 1, "title:": 1, "price:": 1 } }
+        { $project: { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 } }
       ]);
       console.log("Random post IDs:", randomPosts.map(p => p._id));
       return res.status(200).json(randomPosts);
@@ -137,16 +64,14 @@ router.get('/', authMiddleware, async (req, res) => {
         user.likedClusters && Array.isArray(user.likedClusters) && user.likedClusters.length &&
         user.dislikedClusters && Array.isArray(user.dislikedClusters) && user.dislikedClusters.length
       ) {
-        // With a 50% chance, recalculate clusters.
         if (Math.random() < 0.5) {
           console.log("Existing clusters found but recalculating clusters.");
-          // Re-fetch user data from DB to ensure full liked/disliked arrays.
           user = await User.findById(req.user.id).populate('likedPosts dislikedPosts');
           const likedDescriptions = user.likedPosts.map(post => post["product_description:"]).filter(Boolean);
           const dislikedDescriptions = user.dislikedPosts.map(post => post["product_description:"]).filter(Boolean);
           console.log("Liked Descriptions (fresh):", likedDescriptions);
           console.log("Disliked Descriptions (fresh):", dislikedDescriptions);
-          clusters = await runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions);
+          clusters = await callCalculatePreferences(likedDescriptions, dislikedDescriptions);
           console.log("Newly calculated clusters:", clusters);
           user.likedClusters = clusters.likedClusters;
           user.dislikedClusters = clusters.dislikedClusters;
@@ -158,13 +83,12 @@ router.get('/', authMiddleware, async (req, res) => {
         }
       } else {
         console.log("No clusters found. Calculating clusters from descriptions.");
-        // Re-fetch user to ensure the arrays are complete.
         user = await User.findById(req.user.id).populate('likedPosts dislikedPosts');
         const likedDescriptions = user.likedPosts.map(post => post["product_description:"]).filter(Boolean);
         const dislikedDescriptions = user.dislikedPosts.map(post => post["product_description:"]).filter(Boolean);
         console.log("Liked Descriptions (fresh):", likedDescriptions);
         console.log("Disliked Descriptions (fresh):", dislikedDescriptions);
-        clusters = await runPythonCalculatePreferences(likedDescriptions, dislikedDescriptions);
+        clusters = await callCalculatePreferences(likedDescriptions, dislikedDescriptions);
         console.log("Calculated clusters:", clusters);
         user.likedClusters = clusters.likedClusters;
         user.dislikedClusters = clusters.dislikedClusters;
@@ -176,11 +100,11 @@ router.get('/', authMiddleware, async (req, res) => {
       const samplePosts = await Post.aggregate([
         { $match: { _id: { $nin: excludedIds } } },
         { $sample: { size: 180 } },
-        { $project: { _id: 1, "image_url:": 1, "product_description:": 1, "title:": 1, "price:": 1 } }
+        { $project: { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 } }
       ]);
       console.log("Sampled post IDs for recommendation:", samplePosts.map(p => p._id));
 
-      let recommendedIds = await runPythonRecommendation(
+      let recommendedIds = await callRecommend(
         clusters.likedClusters,
         clusters.dislikedClusters,
         samplePosts
@@ -194,7 +118,7 @@ router.get('/', authMiddleware, async (req, res) => {
       // Fetch full post details for the recommended posts.
       const posts = await Post.find(
         { _id: { $in: recommendedIds } },
-        { _id: 1, "image_url:": 1, "product_description:": 1, "title:": 1, "price:": 1 }
+        { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 }
       );
 
       // Reorder posts to match order of recommendedIds.
@@ -223,22 +147,29 @@ router.get('/myPosts', authMiddleware, async (req, res) => {
 
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
+    console.log("GET /api/posts/" + req.params.id);
     const post = await Post.findById(req.params.id);
-    if (!post) return res.status(404).json({ message: 'Post not found' });
+    if (!post) {
+      console.log("Post not found for id:", req.params.id);
+      return res.status(404).json({ message: 'Post not found' });
+    }
     res.status(200).json({
-      _id: post._id.toString(), // Ensure the ID is a string
-      "image_url:": post.imageUrl,
-      "product_description:": post.productDescription,
-      "title:": post.title,
-      "price:": post.price
+      _id: post._id.toString(),
+      "image_url:": post["image_url:"],
+      "title:": post["title:"],
+      uploader: post.uploader,
+      "price:": post["price:"],
+      priceRange: post.priceRange,
+      "product_description:": post["product_description:"]
     });
   } catch (error) {
+    console.error("Error in GET /:id", error);
     res.status(500).json({ message: 'Server error', error: error.toString() });
   }
 });
 
 module.exports = router;
-*/
+/*working one time version just local below
 const express = require('express');
 const router = express.Router();
 const Post = require('../models/Post');
@@ -483,5 +414,5 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-
+*/
 
