@@ -1,18 +1,16 @@
 // models/communityPosts.js
 const mongoose = require('mongoose');
 
-// models/communityPosts.js
-const UserSchema = new mongoose.Schema({
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  likedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
-  dislikedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
-  likedClusters: { type: Array, default: [] },
-  dislikedClusters: { type: Array, default: [] }
-});
+const CommunityPostSchema = new mongoose.Schema({
+  "image_url:": { type: String, required: true },
+  "title:": { type: String, required: true },
+  uploader: { type: String, required: true },
+  "price:": { type: Number, required: true },
+  priceRange: { type: String },
+  "product_description:": { type: String }
+}, timestamps: true,
+  // Specify a custom collection name to avoid conflicts with the Post model.
+  collection: 'communityPosts'});
 
 
-module.exports = mongoose.model('User', UserSchema);
+module.exports = mongoose.model('CommunityPost', CommunityPostSchema);
