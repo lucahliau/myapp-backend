@@ -13,7 +13,9 @@ const UserSchema = new mongoose.Schema({
   likedClusters: { type: Array, default: [] },
   dislikedClusters: { type: Array, default: [] },
   recommendedPosts: { type: Array, default: [] },
-  recentBatch: { type: Array, default: [] }
+  recentBatch: { type: Array, default: [] },
+  favouritePosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }] // new field
+
 });
 
 
