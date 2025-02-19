@@ -25,25 +25,32 @@ async function callRecommend(likedClusters, dislikedClusters, samplePosts) {
   try {
     const payload = { likedClusters, dislikedClusters, posts: samplePosts };
     const response = await axios.post(`${PYTHON_SERVICE_URL}/recommend`, payload);
-    return response.data;
+    let recommendedIds = response.data;
+    if (recommendedIds.length && typeof recommendedIds[0] === 'object') {
+      recommendedIds = recommendedIds.map(item => item.id);
+    }
+    return recommendedIds;
   } catch (err) {
     console.error('Error calling recommend service:', err);
     throw err;
   }
 }
 
-// Helper function for on-demand recommendations
-// sampleSize: number of posts to sample for the recommendation call
-// returnCount: number of posts to return to the app (e.g. 30)
+/**
+ * Helper function for the on-demand recommendation flow.
+ *   - sampleSize: number of posts to sample for recommendation (180 when on-demand)
+ *   - returnCount: number of posts to return to the mobile app (30 posts)
+ * It also saves the full set of recommended posts in the user.recommendedPosts.
+ */
 async function getOnDemandRecommendations(user, sampleSize, returnCount) {
-  // Recalculate clusters from fresh liked/disliked descriptions
+  // Recalculate clusters using the fresh liked/disliked descriptions.
   const likedDescriptions = user.likedPosts.map(post => post["product_description:"]).filter(Boolean);
   const dislikedDescriptions = user.dislikedPosts.map(post => post["product_description:"]).filter(Boolean);
   const clusters = await callCalculatePreferences(likedDescriptions, dislikedDescriptions);
   user.likedClusters = clusters.likedClusters;
   user.dislikedClusters = clusters.dislikedClusters;
   
-  // Sample posts that the user hasn’t seen yet.
+  // Exclude posts already seen (liked/disliked)
   const likedIds = user.likedPosts.map(post => post._id);
   const dislikedIds = user.dislikedPosts.map(post => post._id);
   const excludedIds = likedIds.concat(dislikedIds);
@@ -56,28 +63,63 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
   
   // Get recommendations from the Python service.
   let recommendedIds = await callRecommend(clusters.likedClusters, clusters.dislikedClusters, samplePosts);
-  if (recommendedIds.length && typeof recommendedIds[0] === 'object') {
-    recommendedIds = recommendedIds.map(item => item.id);
-  }
   
-  // Store the on-demand recommended posts in the user's field (only storing the full batch for later use)
-  // For on-demand, we store only the posts returned by recommend (even if we return a subset to the client).
+  // Save the complete set of recommendations in the user's field.
   user.recommendedPosts = recommendedIds;
   await user.save();
   
-  // Fetch full details for the first "returnCount" recommended posts.
+  // Fetch the first "returnCount" posts for the mobile app.
   const posts = await Post.find(
     { _id: { $in: recommendedIds.slice(0, returnCount) } },
     { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 }
   );
-  
-  // Reorder posts to match the recommended order.
   const postsMap = {};
   posts.forEach(post => {
     postsMap[post._id.toString()] = post;
   });
   const orderedPosts = recommendedIds.slice(0, returnCount).map(id => postsMap[id]).filter(Boolean);
-  return orderedPosts;
+  return { orderedPosts, newRecIds: recommendedIds };
+}
+
+/**
+ * Backup update function that is used by the scheduler
+ * and also called after sending a batch to the mobile app.
+ *
+ * It uses ALL posts (or you could change the sampling if needed) but
+ * excludes any posts that are in likedPosts, dislikedPosts, or the recentBatch.
+ * It then runs the recommendation algorithm and stores the top 50 posts.
+ */
+async function updateBackupRecommendations(user) {
+  try {
+    // Recalculate clusters if needed.
+    if (!user.likedClusters || !user.dislikedClusters || !user.likedClusters.length || !user.dislikedClusters.length) {
+      const likedDescriptions = user.likedPosts.map(post => post["product_description:"]).filter(Boolean);
+      const dislikedDescriptions = user.dislikedPosts.map(post => post["product_description:"]).filter(Boolean);
+      const clusters = await callCalculatePreferences(likedDescriptions, dislikedDescriptions);
+      user.likedClusters = clusters.likedClusters;
+      user.dislikedClusters = clusters.dislikedClusters;
+    }
+    
+    // Exclude posts: liked, disliked, and the most recent batch (if any)
+    const likedIds = user.likedPosts.map(post => post._id);
+    const dislikedIds = user.dislikedPosts.map(post => post._id);
+    const recentBatch = user.recentBatch || [];
+    const excludedIds = likedIds.concat(dislikedIds, recentBatch);
+    
+    // Sample ALL posts but exclude those already seen or recently sent.
+    const samplePosts = await Post.aggregate([
+      { $match: { _id: { $nin: excludedIds } } },
+      { $project: { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 } }
+    ]);
+    
+    let recommendedIds = await callRecommend(user.likedClusters, user.dislikedClusters, samplePosts);
+    // Save only the top 50 recommendations.
+    user.recommendedPosts = recommendedIds.slice(0, 50);
+    await user.save();
+    console.log(`Backup recommendations updated for user ${user._id}`);
+  } catch (error) {
+    console.error("Error updating backup recommendations:", error);
+  }
 }
 
 router.get('/', authMiddleware, async (req, res) => {
@@ -90,7 +132,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const totalInteractions = likedCount + dislikedCount;
     console.log(`User ${req.user.id} has ${likedCount} liked posts and ${dislikedCount} disliked posts. Total interactions = ${totalInteractions}`);
 
-    // Case 1: Fewer than 30 interactions -> return 30 random posts.
+    // Case 1: Fewer than 30 interactions → return 30 random posts.
     if (totalInteractions < 30) {
       console.log("Total interactions less than 30. Returning 30 random posts.");
       const randomPosts = await Post.aggregate([
@@ -101,35 +143,41 @@ router.get('/', authMiddleware, async (req, res) => {
     }
 
     // Case 2: 30 or more interactions.
-    // Ensure clusters exist: if not, we’ll compute clusters and generate recommendations.
-    if (!user.likedClusters || !user.dislikedClusters || !user.likedClusters.length || !user.dislikedClusters.length) {
-      console.log("No clusters found. Calculating clusters and recommendations (on-demand sample size 180, returning 30).");
-      const postsToReturn = await getOnDemandRecommendations(user, 180, 30);
-      return res.status(200).json(postsToReturn);
+    // When clusters are missing, or if recommendedPosts are nearly empty (<10), run the on-demand flow.
+    if (
+      !user.likedClusters || !user.dislikedClusters ||
+      !user.likedClusters.length || !user.dislikedClusters.length ||
+      !user.recommendedPosts || user.recommendedPosts.length < 10
+    ) {
+      console.log("No clusters or insufficient backup recommendations. Running on-demand flow (sample=180, return=30).");
+      const { orderedPosts, newRecIds } = await getOnDemandRecommendations(user, 180, 30);
+      // Save the sent batch as the recentBatch.
+      user.recentBatch = newRecIds.slice(0, 30);
+      await user.save();
+      // Also, update the backup recommendations asynchronously.
+      updateBackupRecommendations(user);
+      return res.status(200).json(orderedPosts);
     } else {
-      // Clusters exist.
-      // Check if the user has a recommendedPosts array with enough posts.
-      if (!user.recommendedPosts || user.recommendedPosts.length < 10) {
-        console.log("Recommended posts fewer than 10. Recalculating recommendations (on-demand sample size 180, returning 30).");
-        const postsToReturn = await getOnDemandRecommendations(user, 180, 30);
-        return res.status(200).json(postsToReturn);
-      } else {
-        // There are 10 or more posts stored. Return the first 30 posts from the stored recommendedPosts.
-        console.log("Returning stored recommended posts from user.recommendedPosts.");
-        // Make sure to return full post details.
-        const recommendedSlice = user.recommendedPosts.slice(0, 30);
-        const posts = await Post.find(
-          { _id: { $in: recommendedSlice } },
-          { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 }
-        );
-        // Reorder posts to match order.
-        const postsMap = {};
-        posts.forEach(post => {
-          postsMap[post._id.toString()] = post;
-        });
-        const orderedPosts = recommendedSlice.map(id => postsMap[id]).filter(Boolean);
-        return res.status(200).json(orderedPosts);
-      }
+      // If recommendedPosts already exists and has at least 10 posts,
+      // return the first 30 posts from recommendedPosts.
+      console.log("Returning stored recommended posts.");
+      const recommendedSlice = user.recommendedPosts.slice(0, 30);
+      const posts = await Post.find(
+        { _id: { $in: recommendedSlice } },
+        { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 }
+      );
+      const postsMap = {};
+      posts.forEach(post => {
+        postsMap[post._id.toString()] = post;
+      });
+      const orderedPosts = recommendedSlice.map(id => postsMap[id]).filter(Boolean);
+      
+      // Store these returned posts in recentBatch so that they are excluded in the next backup update.
+      user.recentBatch = recommendedSlice;
+      await user.save();
+      // Now, asynchronously update the backup recommendations (which will empty and fill recommendedPosts, excluding recentBatch).
+      updateBackupRecommendations(user);
+      return res.status(200).json(orderedPosts);
     }
   } catch (error) {
     console.error("Error in GET /posts:", error);
@@ -137,6 +185,38 @@ router.get('/', authMiddleware, async (req, res) => {
   }
 });
 
-// ... other routes (e.g. /myPosts, /:id) remain unchanged.
+// Other routes (e.g. /myPosts, /:id) remain unchanged.
+router.get('/myPosts', authMiddleware, async (req, res) => {
+  try {
+    const myPosts = await Post.find({ uploader: req.user.id }).sort({ createdAt: -1 });
+    return res.status(200).json(myPosts);
+  } catch (error) {
+    console.error("Error fetching myPosts:", error);
+    return res.status(500).json({ message: "Server error", error: error.toString() });
+  }
+});
+
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    console.log("GET /api/posts/" + req.params.id);
+    const post = await Post.findById(req.params.id);
+    if (!post) {
+      console.log("Post not found for id:", req.params.id);
+      return res.status(404).json({ message: 'Post not found' });
+    }
+    res.status(200).json({
+      _id: post._id.toString(),
+      "image_url:": post["image_url:"],
+      "title:": post["title:"],
+      uploader: post.uploader,
+      "price:": post["price:"],
+      priceRange: post.priceRange,
+      "product_description:": post["product_description:"]
+    });
+  } catch (error) {
+    console.error("Error in GET /:id", error);
+    res.status(500).json({ message: 'Server error', error: error.toString() });
+  }
+});
 
 module.exports = router;
