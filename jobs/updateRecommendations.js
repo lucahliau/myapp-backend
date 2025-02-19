@@ -63,7 +63,7 @@ async function updateUserRecommendations() {
 }
 
 // Schedule the job to run every hour.
-cron.schedule('0 * * * *', () => {
+cron.schedule('*/5 * * * *', () => {
   console.log('Running hourly recommendation update job');
   updateUserRecommendations();
 });
