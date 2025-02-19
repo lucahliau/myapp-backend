@@ -62,6 +62,10 @@ app.listen(port, () => {
 // For example, in server.js or app.js
 const updateCommunityPosts = require('./tasks/communityPostsJob');
 
+// In app.js or server.js
+require('./jobs/updateRecommendations');
+
+
 // Run the update job on startup
 updateCommunityPosts();
 
