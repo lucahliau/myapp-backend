@@ -9,7 +9,7 @@ router.post('/add', authMiddleware, async (req, res) => {
   try {
     const { postId } = req.body;
     const user = await User.findById(req.user.id);
-    
+    console.log("AAA Add route running to find user id")
     // Remove the post from likedPosts if it exists.
     user.likedPosts = user.likedPosts.filter(
       id => id.toString() !== postId
@@ -17,10 +17,12 @@ router.post('/add', authMiddleware, async (req, res) => {
     
     // Add to favouritePosts if not already present.
     if (!user.favouritePosts.find(id => id.toString() === postId)) {
+      print("AAA adding to favourites")
       user.favouritePosts.push(postId);
     }
     
     await user.save();
+    console.log("AAA post added to favourites")
     return res.status(200).json({ message: "Post added to favourites." });
   } catch (err) {
     console.error("Error adding favourite:", err);
