@@ -1,4 +1,3 @@
-// jobs/updateRecommendations.js
 const cron = require('node-cron');
 const User = require('../models/User');
 const Post = require('../models/Post');
@@ -19,7 +18,6 @@ async function callRecommend(likedClusters, dislikedClusters, samplePosts) {
   if (recommendedIds.length && typeof recommendedIds[0] === 'object') {
     recommendedIds = recommendedIds.map(item => item.id);
   }
-  
   return recommendedIds;
 }
 
@@ -30,11 +28,9 @@ async function updateUserRecommendations() {
     for (const user of users) {
       const likedCount = user.likedPosts ? user.likedPosts.length : 0;
       const dislikedCount = user.dislikedPosts ? user.dislikedPosts.length : 0;
-      if ((likedCount + dislikedCount) < 30) {
-        continue; // Skip users with fewer than 30 interactions.
-      }
+      if ((likedCount + dislikedCount) < 30) continue; // Skip users with fewer than 30 interactions.
       
-      // If clusters are missing, calculate them.
+      // Ensure clusters exist.
       if (!user.likedClusters || !user.dislikedClusters || !user.likedClusters.length || !user.dislikedClusters.length) {
         const likedDescriptions = user.likedPosts.map(post => post["product_description:"]).filter(Boolean);
         const dislikedDescriptions = user.dislikedPosts.map(post => post["product_description:"]).filter(Boolean);
@@ -43,21 +39,26 @@ async function updateUserRecommendations() {
         user.dislikedClusters = clusters.dislikedClusters;
       }
       
-      // Sample ALL posts (no $sample limit).
-      const allPosts = await Post.aggregate([
+      // Exclude posts in liked/disliked and recentBatch.
+      const likedIds = user.likedPosts.map(post => post._id);
+      const dislikedIds = user.dislikedPosts.map(post => post._id);
+      const recentBatch = user.recentBatch || [];
+      const excludedIds = likedIds.concat(dislikedIds, recentBatch);
+      
+      // Sample ALL posts (without a fixed sample size) that are not in excludedIds.
+      const samplePosts = await Post.aggregate([
+        { $match: { _id: { $nin: excludedIds } } },
         { $project: { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 } }
       ]);
       
-      // Get recommendations using all posts.
-      const recommendedIds = await callRecommend(user.likedClusters, user.dislikedClusters, allPosts);
-      
+      let recommendedIds = await callRecommend(user.likedClusters, user.dislikedClusters, samplePosts);
       // Store the top 50 recommended posts.
       user.recommendedPosts = recommendedIds.slice(0, 50);
       await user.save();
-      console.log(`Schedule updated recommendations for user ${user._id}`);
+      console.log(`Updated backup recommendations for user ${user._id}`);
     }
   } catch (error) {
-    console.error("Error schedule updating recommendations:", error);
+    console.error("Error updating recommendations:", error);
   }
 }
 
