@@ -19,6 +19,7 @@ async function callRecommend(likedClusters, dislikedClusters, samplePosts) {
   if (recommendedIds.length && typeof recommendedIds[0] === 'object') {
     recommendedIds = recommendedIds.map(item => item.id);
   }
+  
   return recommendedIds;
 }
 
@@ -53,10 +54,10 @@ async function updateUserRecommendations() {
       // Store the top 50 recommended posts.
       user.recommendedPosts = recommendedIds.slice(0, 50);
       await user.save();
-      console.log(`Updated recommendations for user ${user._id}`);
+      console.log(`Schedule updated recommendations for user ${user._id}`);
     }
   } catch (error) {
-    console.error("Error updating recommendations:", error);
+    console.error("Error schedule updating recommendations:", error);
   }
 }
 
