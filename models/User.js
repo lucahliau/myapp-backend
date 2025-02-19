@@ -12,7 +12,8 @@ const UserSchema = new mongoose.Schema({
   dislikedPosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
   likedClusters: { type: Array, default: [] },
   dislikedClusters: { type: Array, default: [] },
-  recommendedPosts: { type: Array, default: [] }
+  recommendedPosts: { type: Array, default: [] },
+  recentBatch: { type: Array, default: [] }
 });
 
 
