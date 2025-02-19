@@ -76,14 +76,6 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
   return { orderedPosts, newRecIds: recommendedIds };
 }
 
-/**
- * Backup update function that is used by the scheduler
- * and also called after sending a batch to the mobile app.
- *
- * It uses ALL posts (or you could change the sampling if needed) but
- * excludes any posts that are in likedPosts, dislikedPosts, or the recentBatch.
- * It then runs the recommendation algorithm and stores the top 50 posts.
- */
 async function updateBackupRecommendations(user) {
   try {
     // Recalculate clusters if needed.
