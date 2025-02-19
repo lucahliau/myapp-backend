@@ -4,15 +4,7 @@ const User = require('../models/User');
 const Post = require('../models/Post');
 const CommunityPost = require('../models/CommunityPost');
 
-/**
- * This function:
- *  - Retrieves all users.
- *  - Tallies likedPosts (assumed to be an array of Post ObjectIds on each user).
- *  - Sorts the post IDs by like count (descending) and takes the top 20.
- *  - Deletes any posts in the communityPosts collection.
- *  - Inserts the full post documents into the communityPosts collection,
- *    each with an assigned orderPosition (1 = most popular, 2 = second, etc.).
- */
+
 async function updateCommunityPosts() {
   try {
     console.log("Running community posts update job...");
