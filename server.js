@@ -16,6 +16,7 @@ const cors = require('cors');
 require('dotenv').config();
 const mongoose = require('mongoose');
 
+
 const app = express();
 // Define the port from an environment variable or use 10000 as a default.
 const port = process.env.PORT || 10000;
@@ -42,6 +43,10 @@ app.use('/api/posts', postRoutes);
 // Import interactions routes
 const interactionRoutes = require('./routes/interactions');
 app.use('/api/interactions', interactionRoutes);
+
+const favouritesRouter = require('./routes/favourites');
+app.use('/favourites', favouritesRouter);
+
 
 const communityPostsRoutes = require('./routes/communityPosts');
 // Mount the communityPosts routes on the "/communityPosts" path
