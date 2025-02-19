@@ -45,7 +45,7 @@ const interactionRoutes = require('./routes/interactions');
 app.use('/api/interactions', interactionRoutes);
 
 const favouritesRouter = require('./routes/favourites');
-app.use('/favourites', favouritesRouter);
+app.use('/api/favourites', favouritesRouter);
 
 
 const communityPostsRoutes = require('./routes/communityPosts');
