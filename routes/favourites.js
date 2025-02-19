@@ -17,7 +17,7 @@ router.post('/add', authMiddleware, async (req, res) => {
     
     // Add to favouritePosts if not already present.
     if (!user.favouritePosts.find(id => id.toString() === postId)) {
-      print("AAA adding to favourites")
+      console.log("AAA adding to favourites")
       user.favouritePosts.push(postId);
     }
     
