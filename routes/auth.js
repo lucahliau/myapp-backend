@@ -90,7 +90,8 @@ router.get('/profile', authMiddleware, async (req, res) => {
       lastName: user.lastName,
       password: user.password,
       likedPosts: user.likedPosts.map(post => post._id),       // Return only the post IDs
-      dislikedPosts: user.dislikedPosts.map(post => post._id)    // Return only the post IDs
+      dislikedPosts: user.dislikedPosts.map(post => post._id) ,
+      favouritePosts: user.favouritePosts.map(post => post._id)// Return only the post IDs
     });
   } catch (error) {
     console.error("Error in profile route:", error);
