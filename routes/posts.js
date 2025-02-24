@@ -207,13 +207,14 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
-*/
-const express = require('express');
+*/const express = require('express');
 const router = express.Router();
 const Post = require('../models/Post');
 const User = require('../models/User');
 const authMiddleware = require('../middleware/auth');
 const axios = require('axios');
+// Import ObjectId conversion from mongoose.
+const { ObjectId } = require('mongoose').Types;
 
 // Base URL of the deployed Python recommendation service
 const PYTHON_SERVICE_URL = 'https://recommendation-service-70za.onrender.com';
@@ -285,7 +286,7 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
   
   // Fetch the first "returnCount" posts for the mobile app.
   const posts = await Post.find(
-    { _id: { $in: recommendedIds.slice(0, returnCount) } },
+    { _id: { $in: recommendedIds.slice(0, returnCount).map(id => ObjectId(id)) } },
     { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 }
   );
   const postsMap = {};
@@ -323,7 +324,9 @@ async function updateBackupRecommendations(user) {
     const likedIds = user.likedPosts.map(post => post._id);
     const dislikedIds = user.dislikedPosts.map(post => post._id);
     const recentBatch = user.recentBatch || [];
-    const excludedIds = likedIds.concat(dislikedIds, recentBatch);
+    // Convert the recentBatch IDs from strings to ObjectId.
+    const convertedRecentBatch = recentBatch.map(id => ObjectId(id));
+    const excludedIds = likedIds.concat(dislikedIds, convertedRecentBatch);
     
     // Sample ALL posts but exclude those already seen or recently sent.
     const samplePosts = await Post.aggregate([
@@ -381,8 +384,10 @@ router.get('/', authMiddleware, async (req, res) => {
       // return the first 30 posts from recommendedPosts.
       console.log("Returning stored recommended posts.");
       const recommendedSlice = user.recommendedPosts.slice(0, 30);
+      // Convert recommendedSlice IDs from strings to ObjectId.
+      const convertedRecommendedSlice = recommendedSlice.map(id => ObjectId(id));
       const posts = await Post.find(
-        { _id: { $in: recommendedSlice } },
+        { _id: { $in: convertedRecommendedSlice } },
         { _id: 1, "image_url:": 1, "title:": 1, "price:": 1, "product_description:": 1 }
       );
       const postsMap = {};
@@ -439,3 +444,4 @@ router.get('/:id', authMiddleware, async (req, res) => {
 });
 
 module.exports = router;
+
