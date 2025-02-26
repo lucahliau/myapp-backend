@@ -225,7 +225,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
       title: post.title,
       uploader: post.uploader,
       price: post.price,
-      description: post.description
+      description: post.description,
+      pageUrl: post.pageUrl
     });
   } catch (error) {
     console.error("Error in GET /:id", error);
