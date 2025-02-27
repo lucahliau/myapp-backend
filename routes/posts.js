@@ -151,7 +151,7 @@ router.get('/', authMiddleware, async (req, res) => {
       console.log("Total interactions less than 30. Returning 30 random posts.");
       const randomPosts = await Post.aggregate([
         { $sample: { size: 30 } },
-        { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1 } }
+      { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1 } }
       ]);
       return res.status(200).json(randomPosts);
     }
