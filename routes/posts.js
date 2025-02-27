@@ -65,7 +65,8 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
   const samplePosts = await Post.aggregate([
     { $match: { _id: { $nin: excludedIds } } },
     { $sample: { size: sampleSize } },
-    { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1 } }
+    { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1 } }
+ }
   ]);
   
   // Get recommendations from the Python service.
@@ -78,7 +79,7 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
   // Fetch the first "returnCount" posts for the mobile app.
   const posts = await Post.find(
     { _id: { $in: recommendedIds.slice(0, returnCount).map(id => ObjectId(id)) } },
-    { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1 }
+    { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1 } }
   );
   const postsMap = {};
   posts.forEach(post => {
