@@ -65,8 +65,7 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
   const samplePosts = await Post.aggregate([
     { $match: { _id: { $nin: excludedIds } } },
     { $sample: { size: sampleSize } },
-    { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1 } }
- 
+    { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1, category: 1 } }
   ]);
   
   // Get recommendations from the Python service.
@@ -79,7 +78,7 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
   // Fetch the first "returnCount" posts for the mobile app.
   const posts = await Post.find(
     { _id: { $in: recommendedIds.slice(0, returnCount).map(id => ObjectId(id)) } },
-    { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1 } }
+    { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1, category: 1 }
   );
   const postsMap = {};
   posts.forEach(post => {
@@ -123,7 +122,7 @@ async function updateBackupRecommendations(user) {
     // Sample ALL posts but exclude those already seen or recently sent.
     const samplePosts = await Post.aggregate([
       { $match: { _id: { $nin: excludedIds } } },
-      { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1 } }
+      { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1, category: 1 } }
     ]);
     
     let recommendedIds = await callRecommend(user.likedClusters, user.dislikedClusters, samplePosts);
@@ -151,7 +150,7 @@ router.get('/', authMiddleware, async (req, res) => {
       console.log("Total interactions less than 30. Returning 30 random posts.");
       const randomPosts = await Post.aggregate([
         { $sample: { size: 30 } },
-      { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1 } }
+        { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1, category: 1 } }
       ]);
       return res.status(200).json(randomPosts);
     }
@@ -180,7 +179,7 @@ router.get('/', authMiddleware, async (req, res) => {
       const convertedRecommendedSlice = recommendedSlice.map(id => ObjectId(id));
       const posts = await Post.find(
         { _id: { $in: convertedRecommendedSlice } },
-        { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1 }
+        { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1, category: 1 }
       );
       const postsMap = {};
       posts.forEach(post => {
@@ -227,7 +226,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
       uploader: post.uploader,
       price: post.price,
       description: post.description,
-      pageUrl: post.pageUrl
+      pageUrl: post.pageUrl,
+      category: post.category
     });
   } catch (error) {
     console.error("Error in GET /:id", error);
