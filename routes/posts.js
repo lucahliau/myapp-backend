@@ -66,7 +66,7 @@ async function getOnDemandRecommendations(user, sampleSize, returnCount) {
     { $match: { _id: { $nin: excludedIds } } },
     { $sample: { size: sampleSize } },
     { $project: { _id: 1, imageUrl: 1, title: 1, price: 1, description: 1, pageUrl: 1 } }
- }
+ 
   ]);
   
   // Get recommendations from the Python service.
