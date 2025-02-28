@@ -1,7 +1,6 @@
 // models/User.js
 const mongoose = require('mongoose');
 
-// models/User.js
 const UserSchema = new mongoose.Schema({
   firstName: { type: String, required: true },
   lastName: { type: String, required: true },
@@ -14,9 +13,8 @@ const UserSchema = new mongoose.Schema({
   dislikedClusters: { type: Array, default: [] },
   recommendedPosts: { type: Array, default: [] },
   recentBatch: { type: Array, default: [] },
-  favouritePosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }] // new field
-
+  favouritePosts: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Post' }],
+  profilePic: { type: String, default: null } // NEW field for profile picture
 });
-
 
 module.exports = mongoose.model('User', UserSchema);
